@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> 
+    
+    <meta charset="UTF-8">
+    <title>Bulut To-Do List</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #ffeaa7; display: flex; justify-content: center; padding-top: 50px; }
+        .kutu { background-color: white; padding: 30px; width: 400px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        
+        .giris-alani { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; outline: none; }
+        button#btnEkle { padding: 10px 20px; cursor: pointer; background: #00b894; color: white; border: none; border-radius: 5px; font-weight: bold; }
+        button#btnEkle:hover { background: #019e7e; }
+
+        ul { padding: 0; list-style: none; }
+        
+        /* Liste Elemanı Tasarımı */
+        li { 
+            background: #f1f2f6; 
+            margin: 5px 0; 
+            padding: 10px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-radius: 5px; 
+            user-select: none; /* Metin seçilmesini engeller, daha uygulama gibi hissettirir */
+        }
+
+        /* Görev Metni (Tıklanabilir Alan) */
+        .gorev-metni {
+            cursor: pointer;
+            flex-grow: 1; /* Boşluğu kapla ki tıklaması kolay olsun */
+            margin-right: 10px;
+            transition: 0.3s;
+        }
+        
+        /* Üstü Çizili (Yapıldı) Stili */
+        .cizik {
+            text-decoration: line-through;
+            color: #888;
+            opacity: 0.6;
+        }
+
+        .btn-sil { background: #d63031; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .yukleniyor { color: orange; text-align: center; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div class="kutu">
+        <h2>☁️ Bulut Görev Listesi</h2>
+        
+        <div class="giris-alani">
+            <input type="text" id="veriGiris" placeholder="Görev yaz ve Enter'a bas...">
+            <button id="btnEkle" onclick="verileriSunucuyaGonder()">Ekle</button>
+        </div>
+        
+        <p id="bilgiMesaji" class="yukleniyor">Veriler yükleniyor...</p>
+        <ul id="listeKutusu"></ul>
+    </div>
+
+    <script>
+        // *** BURAYA KENDİ GOOGLE SCRIPT LINKINIZI YAPISTIRIN ***
+        const API_URL = "https://script.google.com/macros/s/AKfycbz7Bg1fWvR8SooWmKneUeOb9Qr74GGU3ljQ0CrDlBrZfR1TOGiQwye6ppVaQSWkFTkV/exec";
+
+        // Enter Tuşu Kontrolü
+        var inputKutusu = document.getElementById("veriGiris");
+        inputKutusu.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                verileriSunucuyaGonder();
+            }
+        });
+
+        window.onload = function() { listeyiGetir(); };
+
+        function listeyiGetir() {
+            fetch(API_URL)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("bilgiMesaji").style.display = "none";
+                const liste = document.getElementById("listeKutusu");
+                liste.innerHTML = ""; 
+                data.forEach(item => { ekranaSatirEkle(item.gorev); });
+            })
+            .catch(err => {
+                document.getElementById("bilgiMesaji").innerText = "Hata oluştu!";
+                console.error(err);
+            });
+        }
+
+        function verileriSunucuyaGonder() {
+            var girilenYazi = inputKutusu.value;
+            if (girilenYazi === "") return;
+
+            ekranaSatirEkle(girilenYazi);
+            inputKutusu.value = "";
+            inputKutusu.focus();
+
+            fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "ekle", gorev: girilenYazi })
+            });
+        }
+
+        function veriyiSil(gorevMetni, liElementi) {
+            if(!confirm("Silmek istiyor musunuz?")) return;
+            liElementi.remove();
+            fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "sil", gorev: gorevMetni })
+            });
+        }
+
+        function ekranaSatirEkle(yazi) {
+            var ul = document.getElementById("listeKutusu");
+            var li = document.createElement("li");
+            
+            // YENİ KISIM: Span oluşturma ve tıklama olayı
+            var span = document.createElement("span");
+            span.innerText = yazi;
+            span.className = "gorev-metni"; // CSS sınıfı verdik
+
+            // Tıklayınca 'cizik' sınıfını ekle/çıkar
+            span.onclick = function() {
+                this.classList.toggle("cizik");
+            };
+
+            var btnSil = document.createElement("button");
+            btnSil.innerText = "Sil";
+            btnSil.className = "btn-sil";
+            btnSil.onclick = function() { veriyiSil(yazi, li); };
+
+            li.appendChild(span);
+            li.appendChild(btnSil);
+            ul.appendChild(li);
+        }
+    </script>
+</body>
+</html>
